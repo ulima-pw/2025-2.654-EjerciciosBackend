@@ -2,6 +2,7 @@ import express, {Request, Response, NextFunction} from "express"
 import dotenv from "dotenv"
 import bodyParser from "body-parser"
 import cors from "cors"
+import { PrismaClient } from "./generated/prisma"
 
 dotenv.config() 
 const app = express()
@@ -35,19 +36,32 @@ const authenticator = (req : Request, resp : Response, next : NextFunction) => {
     }
 }
 
-app.post("/login", (req : Request, resp : Response) => {
+app.post("/login", async (req : Request, resp : Response) => {
     const username = req.body.username
     const password = req.body.password
 
-    if (username == "PW" && password == "123") {
-        resp.json({
-            token : "abc123"
+    const prisma = new PrismaClient()
+    const usuario = await prisma.usuario.findFirst({
+        where : {
+            username : username,
+            password : password
+        },
+        omit : {
+            password : true,
+            apellido : true,
+            activo : true
+        }
+    })
+
+    if (usuario == null) {
+        // Login incorrecto
+        resp.status(401).json({
+            error : "Credenciales invalidas"
         })
         return
     }else {
-        resp.status(400).json({
-            error : "Credenciales invalidas"
-        })
+        // Login Correcto
+        resp.status(200).json(usuario)
         return
     }
 })
